@@ -122,8 +122,3 @@ if __name__ == "__main__":
     data = get_data(report)
 
     print(data)
-    
-    # TODO
-    # with open("output/nanostat_output.json", "w") as f:
-    #    json.dump(data, f)
-    #    f.close()

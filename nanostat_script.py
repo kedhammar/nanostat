@@ -109,6 +109,10 @@ def get_data(report):
     if barcodes:
         data["barcode_reads"] = barcodes
 
+    # Assert MinKNOW version
+    version, subversion, patch  = [int(i) for i in data["MinKNOW"].split(".")]
+    assert (version, subversion, patch) == (22, 5, 7)
+
     return data
 
 
@@ -116,9 +120,6 @@ if __name__ == "__main__":
     
     report = sys.argv[1]
     data = get_data(report)
-
-    version, subversion, patch  = [int(i) for i in data["MinKNOW"].split(".")]
-    assert (version, subversion, patch) == (22, 5, 7)
 
     print(data)
     

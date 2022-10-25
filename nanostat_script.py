@@ -116,6 +116,10 @@ if __name__ == "__main__":
     
     report = sys.argv[1]
     data = get_data(report)
+
+    version, subversion, patch  = [int(i) for i in data["MinKNOW"].split(".")]
+    assert (version, subversion, patch) == (22, 5, 7)
+
     print(data)
     
     # TODO

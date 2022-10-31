@@ -6,114 +6,101 @@ import sys
 import json
 
 
-def scrape_stats(soup, class_name, result_index = 0):
-    ''' Search bs4 object for HTML class occurence and return list of strings '''
+def scrape_text(soup):
+    ''' Convert soup object to list of strings '''
     
-    s = soup.find_all("div", class_=class_name)[result_index].text
-    
+    s = soup.getText()
     l = [e.strip() for e in s.split("\n") if e.strip()]
+
     return l
 
 
-def manual_curation(total):
-    ''' 
-    Takes an unformated list of scrape results and curates it into a dictionary.
+def fetch_kv_pairs(l):
+    keys = ['Estimated bases',
+                'Data produced',
+                'Reads generated',
+                'Estimated N50',
+                'Elapsed time',
+                'Run status',
+                'Flow Cell type',
+                'Flow Cell ID',
+                'Kit type',
+                'Specified run length',
+                'Active channel selection',
+                'Pore scan freq.',
+                'Bias voltage (initial)',
+                'Bias voltage (final)',
+                'Reserved pores',
+                'Basecalling',
+                'FAST5 output',
+                'FAST5 reads per file',
+                'FASTQ output',
+                'FASTQ reads per file',
+                'BAM output',
+                'Bulk file output',
+                'Data location',
+                'MinKNOW',
+                'Bream',
+                'Configuration',
+                'Guppy',
+                'MinKNOW Core']
+
+    d = {}
+    for e in l:
+        if e in keys:
+            d[e] = l[l.index(e)+1]
+
+    return d
+
+
+def fetch_misc_stats(l):
+    indices = [1, 3, 4, 24, 25, 26]
+    misc_stats = [e for e in l if l.index(e) in indices]
+
+    d = {}
+    d["Instrument"] = misc_stats[0]
+    for k, v in zip(["Duration", "Experiment name", "Sample name", "Position"], misc_stats[1].split(" · ")):
+        d[k] = v
+    d[misc_stats[2].split(": ")[0]] = misc_stats[2].split(": ")[1]
+    d["Min Q score"] = misc_stats[3].split(" ")[-1][:-1]
+    d["Bases called"] = misc_stats[4]
+    d["Bases uncalled"] = misc_stats[5]
+
+    return d
+
+
+def format_info(l):
+
+    # Un-comment the following line and export to spreadsheet to get overview of how to trim the list
+    # df = DataFrame(l)
+    # df.to_csv("report_entries.tsv", sep="\t")
     
-    This is a highly manual process due to the varied formatting between keys and values in the report.
-    '''
-
-    # Remove lines that are headers or superfluent
-    to_remove = ['DATA OUTPUT',
-                'Data written to disk',
-                'BASECALLING',
-                'Pass',
-                'Fail',
-                'RUN DURATION',
-                'RUN SETUP',
-                'RUN SETTINGS',
-                'DATA OUTPUT SETTINGS',
-                'SOFTWARE VERSIONS']
-    for i in to_remove:
-        total.remove(i)
-
-
-    # Manually re-shuffle lines pertaining to Q score threshold and pass/fail
-    p = re.compile("min Q score\: [\d]+")
-    q_score = p.search("".join(total)).group()[13:]
-
-    i = total.index(f'Bases called (min Q score: {q_score})')
-    total[i] = 'Bases passed'
-    total.insert(i+2, 'Bases failed')
-    total.insert(i, "Q score")
-    total.insert(i+1, q_score)
-
-
-    # Curate based on whether key-value pairs in the list are...
-
-    # 1)
-    two_lines = total[:-5]
-    data = {key : val for key, val in zip(two_lines[::2], two_lines[1::2])}
-    # 2)
-    missing_keys = total[-5:-1]
-    keys = ["Run duration",
-            "Experiment name",
-            "Sample name",
-            "Instrument position"]
-    for k, v in zip(keys, missing_keys):
-        data[k] = v
-    # 3)
-    one_line = total[-1]
-    data[one_line.split(": ")[0]] = one_line.split(": ")[1]
-
-    return data
-
-
-def scrape_barcodes(soup):
-    ''' Search bs4 object for "barcode" class occurence and return dict of barcode counts '''
+    misc_stats = fetch_misc_stats(l)
+    key_value_pairs = fetch_kv_pairs(l)
+    barcode_reads = 
+    event_log = 
     
-    bcs = soup.find_all("div", class_="barcode")
+    run_data = {"run_stats" : misc_stats.update(key_value_pairs),
+                "event_log" : event_log}
 
-    if bcs:
-        unsorted = {}
-        for bc in bcs:
-            s = bc.text.strip()
+    if barcode_reads:
+        run_data["barcode_reads"] = barcode_reads
 
-            p = re.compile("\d+")
-            bc_name, bc_count = s[0:9], p.search(s[10:]).group()
-            unsorted[bc_name] = bc_count
-            bc_dict = OrderedDict(sorted(unsorted.items()))
-        return bc_dict
-    else:
-        return None
+    return run_data
+    
 
 
 def get_data(report):
-    ''' 
-    Takes an ONT .html run report and returns a dictionary containing relevant data.
-    
-    Barcode counts are appended as last dictionary entry as an ordered dict if applicable.
-    '''
 
     soup = bs(open(report, "r"),"html.parser")
+    l = scrape_text(soup)
 
-    total = []                                                     # List element(s) are...
-    total += scrape_stats(soup, "accordion content", 0)             # Headers, keys or values
-    total += scrape_stats(soup, "accordion content", 1)             # -||-
-    total += scrape_stats(soup, "run-details")[0].split(" · ")      # Values w/o keys, separated by " · "
-    total += scrape_stats(soup, "protocol-run-id")                  # Key : Value
-
-    data = manual_curation(total)
-
-    # Check for barcodes, and add read count dict, if any
-    barcodes = scrape_barcodes(soup)
-    if barcodes:
-        data["barcode_reads"] = barcodes
-
-    # Assert MinKNOW version
+    # Assert MinKNOW version TODO
     version, subversion, patch  = [int(i) for i in data["MinKNOW"].split(".")]
     assert (version, subversion, patch) == (22, 5, 7)
 
     return data
+
 
 
 if __name__ == "__main__":

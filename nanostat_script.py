@@ -6,8 +6,9 @@ import sys
 import json
 
 
+
 def scrape_text(soup):
-    ''' Convert soup object to list of strings '''
+    ''' Scrape all text from soup object and output as list of strings '''
     
     s = soup.getText()
     l = [e.strip() for e in s.split("\n") if e.strip()]
@@ -15,7 +16,14 @@ def scrape_text(soup):
     return l
 
 
+
 def fetch_kv_pairs(l):
+    """
+    In a list of strings, find elements matching of a pre-determined set of keys,
+    for each such element, add it and the subsequent element in the list to a dict
+    as a key-value pair. Return the dict.
+    """
+
     keys = ['Estimated bases',
                 'Data produced',
                 'Reads generated',
@@ -53,7 +61,13 @@ def fetch_kv_pairs(l):
     return d
 
 
+
 def fetch_misc_stats(l):
+    """
+    Based on prior knowledge of which elements in the list correspond to "singleton"
+    stats, fetch these using their indices and re-format them appropriately into a
+    dict, which is returned.
+    """
     indices = [1, 3, 4, 24, 25, 26]
     misc_stats = [e for e in l if l.index(e) in indices]
 
@@ -69,22 +83,53 @@ def fetch_misc_stats(l):
     return d
 
 
-def format_info(l):
 
-    # Un-comment the following line and export to spreadsheet to get overview of how to trim the list
-    # df = DataFrame(l)
-    # df.to_csv("report_entries.tsv", sep="\t")
+def fetch_barcode_reads(l):
+    """
+    Fetch sublist of barcode counts, separate ID from
+    read count and add as key-value pairs to return dict.
+    """
+
+    l_bc = [e for e in l if re.match("barcode\d{2}",e)]
+
+    d = {}
+    for e in l_bc:
+        bc_id = re.search("barcode0?(\d+)", e).group(1)
+        bc_reads = re.search("Reads: (\d+)", e).group(1)
+        d[bc_id] = bc_reads
+
+    return d
+
+
+
+def fetch_event_log(l):
+
+    l_ev = l[l.index("Disk space"):]
+
+    d = {}
+    for i in range(0,len(l_ev),4):
+        subject = l_ev[i]
+        time = l_ev[i+2]
+        message = l_ev[i+3]
+
+        d[time] = {subject : message}
+
+    return d
+
+
+
+def get_run_data(l):
     
     misc_stats = fetch_misc_stats(l)
     key_value_pairs = fetch_kv_pairs(l)
-    barcode_reads = 
-    event_log = 
+    barcode_reads = fetch_barcode_reads(l)
+    event_log = fetch_event_log(l)
     
-    run_data = {"run_stats" : misc_stats.update(key_value_pairs),
-                "event_log" : event_log}
 
+    run_data = {"stats" : {**misc_stats, **key_value_pairs}}
     if barcode_reads:
         run_data["barcode_reads"] = barcode_reads
+    run_data["event_log"] = event_log
 
     return run_data
     
@@ -94,18 +139,33 @@ def get_data(report):
 
     soup = bs(open(report, "r"),"html.parser")
     l = scrape_text(soup)
-
-    # Assert MinKNOW version TODO
-    version, subversion, patch  = [int(i) for i in data["MinKNOW"].split(".")]
-    assert (version, subversion, patch) == (22, 5, 7)
+    data = get_run_data(l)
 
     return data
+
+
+
+def assert_MinKNOW(data):
+    version, subversion, patch  = data["stats"]["MinKNOW"].split(".")
+    
+    assert (version, subversion, patch) == ("22", "05", "7")
+
+
+
+def dump_json(data, outpath):
+    
+    with open(outpath, "w") as outfile:
+        json.dump(data, outfile)
 
 
 
 if __name__ == "__main__":
     
     report = sys.argv[1]
+    outpath = sys.argv[2]
     data = get_data(report)
 
+    assert_MinKNOW(data, outpath)
+
     print(data)
+    dump_json(data, outpath)

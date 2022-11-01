@@ -154,8 +154,10 @@ def assert_MinKNOW(data):
 
 def dump_json(data, outpath):
     
+    pretty = json.dumps(data, indent = 4)
+
     with open(outpath, "w") as outfile:
-        json.dump(data, outfile)
+        outfile.write(pretty)
 
 
 
@@ -165,7 +167,7 @@ if __name__ == "__main__":
     outpath = sys.argv[2]
     data = get_data(report)
 
-    assert_MinKNOW(data, outpath)
+    assert_MinKNOW(data)
 
     print(data)
     dump_json(data, outpath)

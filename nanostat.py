@@ -1,7 +1,5 @@
 from bs4 import BeautifulSoup as bs
 import re
-from pandas import DataFrame
-from collections import OrderedDict
 import sys
 import json
 

@@ -65,20 +65,30 @@ def fetch_kv_pairs(l):
 def fetch_misc_stats(l):
     """
     Based on prior knowledge of which elements in the list correspond to "singleton"
-    stats, fetch these using their indices and re-format them appropriately into a
+    stats, fetch these using regexes and re-format them appropriately into a
     dict, which is returned.
     """
-    indices = [1, 3, 4, 24, 25, 26]
-    misc_stats = [e for e in l if l.index(e) in indices]
+
+    patterns = [
+        "(Prometh)|(Min)ION",
+        "(.+:.+:.+) · (.+) · (.+) · (.+)",
+        "Protocol run ID: (.+)",
+        "Bases called \(min Q score: (\d+)\)"
+        ]
+
+    l_sub = [e for e in l if any(re.search(p,e) for p in patterns)]
+    l_sub += l[l.index(l_sub[3])+1:l.index(l_sub[3])+3]
 
     d = {}
-    d["Instrument"] = misc_stats[0]
-    for k, v in zip(["Duration", "Experiment name", "Sample name", "Position"], misc_stats[1].split(" · ")):
+    d["Instrument"] = l_sub[0]
+    values = l_sub[1].split(" · ")
+    keys = ["Duration", "Experiment name", "Sample name", "Position"]
+    for k, v in zip(keys, values):
         d[k] = v
-    d[misc_stats[2].split(": ")[0]] = misc_stats[2].split(": ")[1]
-    d["Min Q score"] = misc_stats[3].split(" ")[-1][:-1]
-    d["Bases called"] = misc_stats[4]
-    d["Bases uncalled"] = misc_stats[5]
+    d["Protocol run ID"] = re.search(patterns[2], l_sub[2]).group(1)
+    d["Min Q score"] = re.search(patterns[3], l_sub[3]).group(1)
+    d["Bases called"] = l_sub[4]
+    d["Bases uncalled"] = l_sub[5]
 
     return d
 

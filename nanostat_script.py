@@ -178,6 +178,6 @@ if __name__ == "__main__":
     data = get_data(report)
 
     assert_MinKNOW(data)
-
-    print(data)
     dump_json(data, outpath)
+
+    print("Successfully created", outpath)

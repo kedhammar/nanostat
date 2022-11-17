@@ -172,7 +172,11 @@ def dump_json(data, outpath):
 if __name__ == "__main__":
     
     report = sys.argv[1]
-    outpath = sys.argv[2]
+    try:
+        outpath = sys.argv[2]
+    except:
+        outpath = report.replace(".hthml", ".json")
+        
     data = get_data(report)
 
     assert_MinKNOW(data)

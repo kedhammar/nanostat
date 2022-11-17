@@ -175,8 +175,8 @@ if __name__ == "__main__":
     try:
         outpath = sys.argv[2]
     except:
-        outpath = report.replace(".hthml", ".json")
-        
+        outpath = report.replace(".html", ".json")
+
     data = get_data(report)
 
     assert_MinKNOW(data)
